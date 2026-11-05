@@ -102,7 +102,7 @@ function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function toast(m){var t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(function(){t.style.display='none'},3200)}
 function carga(b){$('cargando').style.display=b?'flex':'none'}
-var API_URL='PEGAR_AQUI_URL_EXEC';
+var API_URL='https://script.google.com/macros/s/AKfycbw-bW1GPRRj_elsTrINF_y5jplZb7apwam9MYUGo6nzdFf6boIZSjfRM-3C_QurMPPs/exec';
 function call(fn,args,ok){
   carga(true);
   if(!(window.google&&google.script&&google.script.run)){
