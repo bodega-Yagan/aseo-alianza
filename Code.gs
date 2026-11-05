@@ -106,6 +106,7 @@ function crearPedido(nombre, pin, items, comentario) {
     shP.appendRow([folio, ahora, nombre, txt_(comentario), 'PENDIENTE', '', '', '', total, '', '', '']);
     const filas = items.map(i => [folio, ahora, nombre, i.producto, i.cantidad, '', '', 'PENDIENTE', '', '', '', uniProd[i.producto] || 'Unidad', '']);
     shD.getRange(shD.getLastRow() + 1, 1, filas.length, 13).setValues(filas);
+    try { avisarPedido_(folio, ahora, nombre, items, uniProd, txt_(comentario)); } catch (e) { console.log('Aviso no enviado: ' + e); }
     return { ok: true, folio: folio };
   } finally {
     lock.releaseLock();
@@ -234,4 +235,37 @@ function registrarEntrega(clave, folio, lineas, obs, docErp) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/* ---------- Aviso por correo al encargado ---------- */
+const APP_URL = 'https://bodega-yagan.github.io/aseo-alianza/';
+
+function avisarPedido_(folio, fecha, nombre, items, uniProd, comentario) {
+  const para = config_('Correo aviso');
+  if (!para) return;
+  const ab = u => ({ Litros: ' LT', CC: ' CC', ML: ' ML' }[u] || '');
+  const filas = items.map(i =>
+    '<tr><td style="padding:6px 10px;border-bottom:1px solid #e3e9f2">' + i.producto + '</td>' +
+    '<td style="padding:6px 10px;border-bottom:1px solid #e3e9f2;text-align:center"><b>' + i.cantidad + ab(uniProd[i.producto]) + '</b></td></tr>').join('');
+  const html =
+    '<div style="font-family:Arial,sans-serif;color:#1d2733">' +
+    '<h2 style="color:#0f3366;margin:0 0 6px">Nuevo pedido de aseo ' + folio + '</h2>' +
+    '<p style="margin:0 0 4px"><b>' + nombre + '</b> · ' + Utilities.formatDate(fecha, TZ, 'dd-MM-yyyy HH:mm') + '</p>' +
+    (comentario ? '<p style="margin:0 0 8px">💬 ' + comentario + '</p>' : '') +
+    '<table style="border-collapse:collapse;font-size:14px;margin:8px 0">' +
+    '<tr style="background:#0f3366;color:#fff"><th style="padding:6px 10px;text-align:left">Producto</th><th style="padding:6px 10px">Cantidad</th></tr>' +
+    filas + '</table>' +
+    '<p><a href="' + APP_URL + '" style="background:#1e8a4c;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:bold">Abrir app y registrar entrega</a></p></div>';
+  MailApp.sendEmail({
+    to: para,
+    subject: '🧹 Nuevo pedido de aseo ' + folio + ' – ' + nombre + ' (' + items.length + ' productos)',
+    htmlBody: html,
+    name: 'Pedidos de Aseo Alianza'
+  });
+}
+
+/** Ejecutar UNA vez desde el editor para dar permiso de correo y recibir un aviso de prueba. */
+function probarAviso() {
+  avisarPedido_('ASEO-PRUEBA', new Date(), 'Prueba', [{ producto: 'Cloro Gel', cantidad: 2 }, { producto: 'Cera Incolora', cantidad: 5 }],
+    { 'Cloro Gel': 'Unidad', 'Cera Incolora': 'Litros' }, 'Este es un aviso de prueba');
 }
