@@ -159,13 +159,24 @@ function pedidos_(filtro, limite) {
 
 /* ---------- Encargado ---------- */
 
+/** Hoja Administradores: Nombre | Clave | Correo | Recibe aviso (SI/NO) | Activo (SI/NO) */
+function admins_() {
+  const sh = hoja_('Administradores');
+  if (!sh) return [];
+  return sh.getDataRange().getValues().slice(1)
+    .filter(r => txt_(r[0]) && txt_(r[1]) && txt_(r[4]).toUpperCase() !== 'NO')
+    .map(r => ({ nombre: txt_(r[0]), clave: txt_(r[1]), correo: txt_(r[2]), aviso: txt_(r[3]).toUpperCase() !== 'NO' }));
+}
+
+/** Devuelve el nombre del administrador dueño de esa clave. */
 function validarAdmin_(clave) {
-  if (txt_(clave) !== config_('Clave encargado')) throw new Error('Clave de encargado incorrecta.');
+  const a = admins_().find(x => x.clave === txt_(clave));
+  if (!a) throw new Error('Clave de encargado incorrecta o usuario inactivo.');
+  return a.nombre;
 }
 
 function adminLogin(clave) {
-  validarAdmin_(clave);
-  return { ok: true, nombre: config_('Nombre encargado') || 'Encargado' };
+  return { ok: true, nombre: validarAdmin_(clave) };
 }
 
 function getPendientes(clave) {
@@ -182,8 +193,7 @@ function getHistorial(clave) {
  * lineas: [{producto, entregada, unidad, obs}]
  */
 function registrarEntrega(clave, folio, lineas, obs, docErp) {
-  validarAdmin_(clave);
-  const entregaPor = config_('Nombre encargado') || 'Encargado';
+  const entregaPor = validarAdmin_(clave);
   const mapa = {}, mapaObs = {}, mapaUni = {};
   (lineas || []).forEach(l => {
     const p = txt_(l.producto);
@@ -241,7 +251,11 @@ function registrarEntrega(clave, folio, lineas, obs, docErp) {
 const APP_URL = 'https://bodega-yagan.github.io/aseo-alianza/';
 
 function avisarPedido_(folio, fecha, nombre, items, uniProd, comentario) {
-  const para = config_('Correo aviso');
+  const lista = config_('Correo aviso').split(/[,;]/)
+    .concat(admins_().filter(a => a.aviso && a.correo).map(a => a.correo))
+    .map(s => s.trim()).filter(Boolean);
+  const vistos = {};
+  const para = lista.filter(s => { const k = s.toLowerCase(); if (vistos[k]) return false; vistos[k] = 1; return true; }).join(',');
   if (!para) return;
   const ab = u => ({ Litros: ' LT', CC: ' CC', ML: ' ML' }[u] || '');
   const filas = items.map(i =>
